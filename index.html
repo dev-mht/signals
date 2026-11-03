@@ -99,6 +99,25 @@
   tr.total td { border-top: 1px solid var(--line); font-weight: 700; }
   .sw.vc { width: 10px; margin-left: 12px; height: 16px; }
 
+
+  /* Mise en page large (classe "wide" posée par le script quand la largeur utile >= 1200 px) :
+     résumé | tableau des timeframes | vector scanner côte à côte, la légende reste dessous. */
+  .board { display: block; }
+  body.wide { padding: 8px 12px 14px; }
+  body.wide header { margin-bottom: 8px; }
+  body.wide .board { display: grid; grid-template-columns: minmax(240px, 0.8fr) minmax(600px, 1.8fr) minmax(330px, 1fr); gap: 10px; align-items: start; }
+  body.wide .board .hero { margin-bottom: 0; }
+  body.wide .board h2 { margin: 0 0 6px; }
+  body.wide .board th, body.wide .board td { padding: 4px 7px; }
+  body.wide .board .strip i { height: 10px; }
+  body.wide details { margin-top: 10px; }
+
+  /* ?view=resume | signaux | vector : un seul bloc, sans légende */
+  body[data-view] .blk, body[data-view] details { display: none; }
+  body[data-view="resume"] .b-resume, body[data-view="signaux"] .b-tf, body[data-view="vector"] .b-vec { display: block; }
+  body[data-view] .board { display: block; }
+  body[data-view] .board h2 { margin: 0 0 6px; }
+
   @media (max-width: 420px) {
     .c-div, .c-flow, .strip { display: none; }
     body { padding: 8px; }
@@ -112,6 +131,8 @@
   <div class="status" id="status">Chargement…</div>
 </header>
 
+<main class="board">
+<div class="blk b-resume">
 <section class="hero">
   <div class="hero-top">
     <div class="cond none" id="heroCond">—</div>
@@ -124,7 +145,9 @@
   </div>
   <div class="bias" id="bias"></div>
 </section>
+</div>
 
+<div class="blk b-tf">
 <table>
   <thead>
     <tr>
@@ -133,7 +156,9 @@
   </thead>
   <tbody id="rows"></tbody>
 </table>
+</div>
 
+<div class="blk b-vec">
 <h2>VECTOR SCANNER · BOUGIE EN COURS</h2>
 <table>
   <thead>
@@ -141,6 +166,8 @@
   </thead>
   <tbody id="vecRows"></tbody>
 </table>
+</div>
+</main>
 
 <details id="legend">
   <summary>LÉGENDE — COMMENT LIRE LE GRAPHIQUE</summary>
@@ -348,6 +375,16 @@ const SIG = {
 const params = new URLSearchParams(location.search)
 const SYMBOL = (params.get('symbol') || 'BTCUSDT').toUpperCase().replace(/[^A-Z0-9]/g, '')
 document.getElementById('sym').textContent = SYMBOL
+
+// ?zoom=1.3 agrandit tout (texte lisible de loin) ; ?view=resume|signaux|vector n'affiche qu'un bloc
+const ZOOM = parseFloat(params.get('zoom'))
+const ZOOM_OK = ZOOM >= 0.5 && ZOOM <= 3 ? ZOOM : 1
+if (ZOOM_OK !== 1) document.documentElement.style.zoom = ZOOM_OK
+const VIEW = (params.get('view') || '').toLowerCase()
+if (['resume', 'signaux', 'vector'].includes(VIEW)) document.body.dataset.view = VIEW
+function fitLayout() { document.body.classList.toggle('wide', window.innerWidth / ZOOM_OK >= 1200) }
+window.addEventListener('resize', fitLayout)
+fitLayout()
 
 function storageGet(k) { try { return localStorage.getItem(k) } catch (e) { return null } }
 function storageSet(k, v) { try { localStorage.setItem(k, v) } catch (e) { /* stockage indisponible */ } }

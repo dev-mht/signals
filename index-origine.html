@@ -1,0 +1,578 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CED Signals</title>
+<meta name="robots" content="noindex">
+<style>
+  :root {
+    --bg: #171b29;
+    --panel: #1d2234;
+    --panel-2: #232a3f;
+    --line: #2c3450;
+    --text: #e6e9f2;
+    --muted: #8b93ad;
+    --faint: #5c6582;
+    --bull: #00e676;
+    --bull-soft: rgba(0, 230, 118, 0.14);
+    --bear: #ff1744;
+    --bear-soft: rgba(255, 23, 68, 0.14);
+    --neutral: #8b93ad;
+    --cyan: #00e5ff;
+    --magenta: #ff40ff;
+    --absorb-bull: #69f0ae;
+    --absorb-bear: #ffab40;
+    --gold: #ffd54f;
+    --violet: #b388ff;
+    --perp: #ff9800;
+    --spot: #18ffff;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text); }
+  body { font: 13px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 10px 12px 16px; }
+  .num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+  header { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+  .brand { font-weight: 700; letter-spacing: 0.08em; font-size: 12px; color: var(--muted); }
+  .brand b { color: var(--text); }
+  .price { font-size: 15px; font-weight: 600; }
+  .status { font-size: 11px; color: var(--faint); }
+  .status.err { color: var(--bear); }
+
+  .hero { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; margin-bottom: 10px; }
+  .hero-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+  .cond { font-weight: 800; letter-spacing: 0.06em; font-size: 15px; padding: 4px 10px; border-radius: 5px; }
+  .cond.bull { color: var(--bull); background: var(--bull-soft); }
+  .cond.bear { color: var(--bear); background: var(--bear-soft); }
+  .cond.none { color: var(--neutral); background: var(--panel-2); }
+  .cond small { font-weight: 600; letter-spacing: 0; margin-left: 6px; opacity: 0.9; }
+  .tf-pick { display: flex; gap: 2px; flex-wrap: wrap; }
+  .tf-pick button { background: var(--panel-2); color: var(--muted); border: 1px solid var(--line); border-radius: 4px; font: 600 11px var(--mono); padding: 3px 7px; cursor: pointer; }
+  .tf-pick button.on { color: var(--text); border-color: var(--muted); }
+  .lastchange { margin-top: 9px; display: flex; align-items: stretch; border-radius: 5px; overflow: hidden; font-size: 12px; font-weight: 700; letter-spacing: 0.04em; }
+  .lastchange span { padding: 5px 9px; }
+  .lastchange .k { background: var(--panel-2); color: var(--muted); }
+  .lastchange .v.bull { background: var(--bull); color: #06210f; }
+  .lastchange .v.bear { background: var(--bear); color: #fff; }
+  .lastchange .v.none { background: var(--panel-2); color: var(--neutral); }
+  .lastchange .ago { background: var(--panel-2); color: var(--text); flex: 1; font-weight: 600; }
+  .bias { margin-top: 8px; font-size: 12px; color: var(--muted); }
+  .bias b { color: var(--text); }
+
+  table { width: 100%; border-collapse: collapse; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  th, td { padding: 6px 7px; text-align: left; white-space: nowrap; }
+  th { font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--faint); font-weight: 700; border-bottom: 1px solid var(--line); }
+  tbody tr { border-top: 1px solid rgba(44, 52, 80, 0.6); cursor: pointer; }
+  tbody tr:first-child { border-top: 0; }
+  tbody tr.sel { background: var(--panel-2); }
+  td.tf { font: 700 12px var(--mono); }
+  .pill { display: inline-block; min-width: 54px; text-align: center; font-weight: 800; font-size: 11px; letter-spacing: 0.05em; padding: 2px 6px; border-radius: 4px; }
+  .pill.bull { color: var(--bull); background: var(--bull-soft); }
+  .pill.bear { color: var(--bear); background: var(--bear-soft); }
+  .pill.none { color: var(--neutral); background: var(--panel-2); }
+  .up { color: var(--bull); } .down { color: var(--bear); } .flat { color: var(--muted); }
+  .rsi-hot { color: var(--bear); } .rsi-cold { color: var(--bull); }
+  .strip { display: inline-flex; gap: 1px; vertical-align: middle; }
+  .strip i { width: 4px; height: 12px; border-radius: 1px; background: var(--panel-2); }
+  .strip i.b { background: var(--bull); } .strip i.s { background: var(--bear); }
+  .div-tag { font-size: 11px; font-weight: 700; }
+  .muted { color: var(--faint); }
+
+  details { margin-top: 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 2px 12px 8px; }
+  summary { cursor: pointer; font-weight: 700; font-size: 12px; letter-spacing: 0.06em; color: var(--muted); padding: 8px 0 4px; }
+  details h3 { font-size: 12px; margin: 12px 0 6px; color: var(--text); }
+  .leg { display: grid; grid-template-columns: 34px 1fr; gap: 6px 10px; align-items: start; font-size: 12px; }
+  .leg p { margin: 0; color: var(--muted); }
+  .leg p b { color: var(--text); font-weight: 600; }
+  .sw { height: 14px; margin-top: 2px; border-radius: 2px; }
+  .sw.line { height: 0; border-top: 2px solid; margin-top: 8px; border-radius: 0; }
+  .sw.dash { height: 0; border-top: 2px dashed; margin-top: 8px; border-radius: 0; }
+  .sw.candle { width: 8px; margin-left: 13px; }
+  .sw.zone { border: 1px solid; }
+  .note { font-size: 11.5px; color: var(--muted); margin: 10px 0 0; }
+
+  h2 { font-size: 11px; letter-spacing: 0.1em; color: var(--muted); margin: 14px 0 6px; font-weight: 700; }
+  .vec { display: inline-block; min-width: 92px; text-align: center; font-weight: 800; font-size: 10.5px; letter-spacing: 0.05em; padding: 2px 6px; border-radius: 4px; color: var(--faint); background: var(--panel-2); }
+  .vec.on { color: #0b0e17; }
+  tr.total td { border-top: 1px solid var(--line); font-weight: 700; }
+  .sw.vc { width: 10px; margin-left: 12px; height: 16px; }
+
+  @media (max-width: 420px) {
+    .c-div, .c-flow, .strip { display: none; }
+    body { padding: 8px; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><b>CED SIGNALS</b> · <span id="sym">BTCUSDT</span></div>
+  <div class="price num" id="price">—</div>
+  <div class="status" id="status">Chargement…</div>
+</header>
+
+<section class="hero">
+  <div class="hero-top">
+    <div class="cond none" id="heroCond">—</div>
+    <div class="tf-pick" id="tfPick"></div>
+  </div>
+  <div class="lastchange">
+    <span class="k">LAST CHANGE</span>
+    <span class="v none" id="lcState">—</span>
+    <span class="ago num" id="lcAgo">—</span>
+  </div>
+  <div class="bias" id="bias"></div>
+</section>
+
+<table>
+  <thead>
+    <tr>
+      <th>TF</th><th>Condition</th><th>Score</th><th>RSI</th><th class="c-flow">Flux</th><th class="c-div">Dernier signal</th><th>Change</th>
+    </tr>
+  </thead>
+  <tbody id="rows"></tbody>
+</table>
+
+<h2>VECTOR SCANNER · BOUGIE EN COURS</h2>
+<table>
+  <thead>
+    <tr><th>TF</th><th>Dir</th><th>Statut</th><th>Vol %</th><th>Clôture</th></tr>
+  </thead>
+  <tbody id="vecRows"></tbody>
+</table>
+
+<details id="legend">
+  <summary>LÉGENDE — COMMENT LIRE LE GRAPHIQUE</summary>
+
+  <h3>Vector candles (bougies recolorées)</h3>
+  <div class="leg">
+    <div class="sw vc" style="background:#2979ff"></div>
+    <p><b>Bleu / vert vif / jaune</b> : volume à 150 % / 200 % / 300 % de la moyenne des 10 dernières bougies, avec un <b>delta acheteur</b>.</p>
+    <div class="sw vc" style="background:#ff00ff"></div>
+    <p><b>Violet / magenta / orange</b> : mêmes paliers avec un <b>delta vendeur</b>. La couleur suit qui a frappé au marché, pas le sens de la bougie : une bougie qui monte en magenta = des ventes absorbées.</p>
+  </div>
+
+  <h3>Divergences (lignes entre deux pivots)</h3>
+  <div class="leg">
+    <div class="sw line" style="border-color:var(--cyan)"></div>
+    <p><b>Divergence haussière.</b> Le prix fait un creux plus bas, le CVD un creux plus haut : les vendeurs au marché s'épuisent.</p>
+    <div class="sw line" style="border-color:var(--magenta)"></div>
+    <p><b>Divergence baissière.</b> Le prix fait un sommet plus haut, le CVD un sommet plus bas : les acheteurs s'épuisent.</p>
+    <div class="sw dash" style="border-color:var(--absorb-bull)"></div>
+    <p><b>Absorption haussière</b> (tirets). Le prix fait un creux plus haut alors que le CVD fait un creux plus bas : les ventes sont absorbées par des ordres limites.</p>
+    <div class="sw dash" style="border-color:var(--absorb-bear)"></div>
+    <p><b>Absorption baissière</b> (tirets). Le prix fait un sommet plus bas alors que le CVD fait un sommet plus haut : les achats sont absorbés.</p>
+    <div class="sw dash" style="border-color:var(--gold);border-top-style:dotted"></div>
+    <p><b>Pointillés or.</b> Sur un creux, les perps vendent pendant que le spot achète : absorption par le spot, plutôt haussier.</p>
+    <div class="sw dash" style="border-color:var(--violet);border-top-style:dotted"></div>
+    <p><b>Pointillés violets.</b> Sur un sommet, les perps achètent pendant que le spot vend : hausse portée par le levier, fragile.</p>
+  </div>
+
+  <h3>Signaux de swing « BULL n/4 » et « BEAR n/4 »</h3>
+  <p class="note">Posés sous un creux ou au-dessus d'un sommet confirmé. Un point par critère rempli : <b>1</b> vector candle autour du pivot · <b>2</b> WaveTrend en zone extrême · <b>3</b> divergence, absorption ou divergence spot/perp · <b>4</b> le flux des bougies suivantes confirme (acheteurs après un creux, vendeurs après un sommet). Par défaut, seuls les 3/4 et 4/4 s'affichent (réglable dans les options de CED Flow).</p>
+
+  <h3>Ruban d'EMA</h3>
+  <p class="note">EMA 21, 55 et 200 : vertes quand le prix est au-dessus, rouges en dessous. La plus épaisse est l'EMA 200.</p>
+
+  <h3>Zones et niveaux</h3>
+  <div class="leg">
+    <div class="sw zone" style="background:var(--bull-soft);border-color:rgba(0,230,118,0.4)"></div>
+    <p><b>DEMAND.</b> Creux avec un gros delta, suivi d'un vrai départ du prix (au moins ½ ATR). La zone s'arrête à la première clôture en dessous.</p>
+    <div class="sw zone" style="background:var(--bear-soft);border-color:rgba(255,23,68,0.4)"></div>
+    <p><b>SUPPLY.</b> Même logique sur un sommet. La zone s'arrête à la première clôture au-dessus.</p>
+    <div class="sw line" style="border-color:var(--bull)"></div>
+    <p><b>Trait vert.</b> Niveau où la condition est passée bullish (clôture de la bougie de bascule). Il s'arrête au changement suivant.</p>
+    <div class="sw line" style="border-color:var(--bear)"></div>
+    <p><b>Trait rouge.</b> Niveau où la condition est passée bearish.</p>
+  </div>
+
+  <h3>Bandes du bas</h3>
+  <div class="leg">
+    <div class="sw line" style="border-color:var(--perp)"></div>
+    <p><b>CVD perp</b> (orange), <span style="color:var(--spot)">CVD spot</span> (cyan) et <span style="color:var(--bull)">CVD total</span> (vert), superposés pour comparer leur forme.</p>
+    <div class="sw line" style="border-color:#4fc3f7"></div>
+    <p><b>CED Cipher</b> : WaveTrend (bleu clair) et sa ligne de signal (violet), avec le nuage entre les deux. L'histogramme vert/rouge est le <b>money flow au delta réel</b> : la part d'achats au marché contre les ventes, lissée. Petit point = croisement ; gros point = croisement en zone extrême (au-delà de ±53), le plus intéressant.</p>
+    <div class="sw line" style="border-color:#b39ddb"></div>
+    <p><b>RSI</b> : masqué par défaut, réactivable dans la liste des indicateurs (rouge au-dessus de 70, vert en dessous de 30).</p>
+  </div>
+
+  <h3>Ce panneau</h3>
+  <p class="note"><b>Score</b> de −5 à +5 sur la dernière bougie close : EMA 21 vs EMA 55, prix vs EMA 55, RSI (au-dessus de 55 / en dessous de 45), delta moyen sur 9 bougies, divergence ou absorption des 12 dernières bougies. La condition passe <b>bullish</b> à +3, <b>bearish</b> à −3, et garde son état entre les deux. Les petites barres montrent la condition sur les 20 dernières bougies.</p>
+  <p class="note"><b>Vector scanner</b> : statut de la bougie en cours sur chaque timeframe (volume en % de la moyenne des 10 précédentes, sens du delta), et le temps restant avant sa clôture. Le statut peut encore monter tant que la bougie n'est pas close. Le total compte les timeframes en vector en même temps.</p>
+  <p class="note">Les pivots sont confirmés 3 bougies après le creux ou le sommet : un signal affiché ne se redessine plus. Ce panneau lit Binance spot + perp ; le graphique aggr lit tes 16 marchés agrégés, donc de petits écarts sont normaux. Une divergence donne un contexte, pas un point d'entrée : cherche la confluence entre plusieurs timeframes.</p>
+</details>
+
+<script>
+/*ENGINE-START*/
+const CED = (() => {
+  const P = { pivotLeft: 6, pivotRight: 3, emaFast: 21, emaSlow: 55, rsiLen: 14, deltaLen: 9, threshold: 3, divRecent: 12, warmup: 60 }
+
+  function emaSeries(values, len) {
+    const k = 2 / (len + 1), out = []
+    for (let i = 0; i < values.length; i++) out.push(i === 0 ? values[0] : (values[i] - out[i - 1]) * k + out[i - 1])
+    return out
+  }
+  function rmaSeries(values, len) {
+    const k = 1 / len, out = []
+    for (let i = 0; i < values.length; i++) out.push(i === 0 ? values[0] : k * values[i] + (1 - k) * out[i - 1])
+    return out
+  }
+
+  // bars: closed bars only, oldest first: { t, closeTime, o, h, l, c, dSpot, dPerp }
+  function analyze(bars, opts = {}) {
+    const p = { ...P, ...opts }
+    const n = bars.length
+    const close = bars.map(b => b.c)
+    const delta = bars.map(b => b.dSpot + b.dPerp)
+    const cvd = [], cvdP = [], cvdS = []
+    for (let i = 0; i < n; i++) {
+      cvd.push((i ? cvd[i - 1] : 0) + delta[i])
+      cvdP.push((i ? cvdP[i - 1] : 0) + bars[i].dPerp)
+      cvdS.push((i ? cvdS[i - 1] : 0) + bars[i].dSpot)
+    }
+    const emaF = emaSeries(close, p.emaFast), emaS = emaSeries(close, p.emaSlow)
+    const chg = close.map((c, i) => (i ? c - close[i - 1] : 0))
+    const gain = rmaSeries(chg.map(x => Math.max(x, 0)), p.rsiLen)
+    const loss = rmaSeries(chg.map(x => Math.max(-x, 0)), p.rsiLen)
+    const rsi = gain.map((g, i) => (loss[i] > 0 ? 100 - 100 / (1 + g / loss[i]) : 50))
+    const dEma = emaSeries(delta, p.deltaLen)
+
+    let lastLow = null, lastHigh = null
+    let bullAge = 1e9, bearAge = 1e9
+    let state = 0, flip = null
+    let lastSignal = null
+    const states = [], signals = []
+    const R = p.pivotRight, L = p.pivotLeft
+
+    for (let i = 0; i < n; i++) {
+      bullAge++; bearAge++
+      const pv = i - R
+      if (pv - L >= 0) {
+        let isLow = true, isHigh = true
+        for (let k = pv - L; k <= i; k++) {
+          if (k === pv) continue
+          if (k > pv) { // newer bars: strictly beyond
+            if (bars[k].l <= bars[pv].l) isLow = false
+            if (bars[k].h >= bars[pv].h) isHigh = false
+          } else { // older bars
+            if (bars[k].l < bars[pv].l) isLow = false
+            if (bars[k].h > bars[pv].h) isHigh = false
+          }
+        }
+        const found = []
+        if (isLow) {
+          const cur = { i: pv, price: bars[pv].l, cvd: cvd[pv], perp: cvdP[pv], spot: cvdS[pv] }
+          if (lastLow) {
+            if (cur.price < lastLow.price && cur.cvd > lastLow.cvd) found.push('bullDiv')
+            if (cur.price > lastLow.price && cur.cvd < lastLow.cvd) found.push('absorbBull')
+            if (cur.perp < lastLow.perp && cur.spot > lastLow.spot) found.push('spotBull')
+          }
+          lastLow = cur
+        }
+        if (isHigh) {
+          const cur = { i: pv, price: bars[pv].h, cvd: cvd[pv], perp: cvdP[pv], spot: cvdS[pv] }
+          if (lastHigh) {
+            if (cur.price > lastHigh.price && cur.cvd < lastHigh.cvd) found.push('bearDiv')
+            if (cur.price < lastHigh.price && cur.cvd > lastHigh.cvd) found.push('absorbBear')
+            if (cur.perp > lastHigh.perp && cur.spot < lastHigh.spot) found.push('spotBear')
+          }
+          lastHigh = cur
+        }
+        if (found.some(f => f === 'bullDiv' || f === 'absorbBull' || f === 'spotBull')) bullAge = 0
+        if (found.some(f => f === 'bearDiv' || f === 'absorbBear' || f === 'spotBear')) bearAge = 0
+        for (const f of found) { lastSignal = { type: f, at: i, pivot: pv }; signals.push(lastSignal) }
+      }
+
+      const trend = emaF[i] > emaS[i] ? 1 : -1
+      const pos = close[i] > emaS[i] ? 1 : -1
+      const mom = rsi[i] > 55 ? 1 : rsi[i] < 45 ? -1 : 0
+      const flow = dEma[i] > 0 ? 1 : -1
+      const div = bullAge <= p.divRecent && bullAge < bearAge ? 1 : bearAge <= p.divRecent && bearAge < bullAge ? -1 : 0
+      const score = trend + pos + mom + flow + div
+      const prev = state
+      if (i + 2 < p.warmup) state = 0
+      else if (score >= p.threshold) state = 1
+      else if (score <= -p.threshold) state = -1
+      if (state !== prev && state !== 0) flip = { i, time: bars[i].closeTime, level: close[i], state }
+      states.push({ state, score, parts: { trend, pos, mom, flow, div } })
+    }
+
+    const last = states[n - 1] || { state: 0, score: 0, parts: {} }
+    return {
+      state: last.state, score: last.score, parts: last.parts,
+      rsi: rsi[n - 1], deltaEma: dEma[n - 1],
+      flip, lastSignal: lastSignal ? { ...lastSignal, barsAgo: n - 1 - lastSignal.at } : null,
+      recentStates: states.slice(-20).map(s => s.state),
+      signals, n
+    }
+  }
+
+  // vector candle : volume vs moyenne des 10 barres closes precedentes, sens = delta (comme CED Flow dans aggr)
+  const V = { mid: 1.5, high: 2, extreme: 3 }
+  function vector(prev10, bar, opts = {}) {
+    const v = { ...V, ...opts }
+    if (!bar || prev10.length < 10) return { tier: 0, ratio: 0, dir: 0 }
+    const vol = b => b.vol
+    const avg = prev10.reduce((s, b) => s + vol(b), 0) / 10
+    const vsMax = Math.max(...prev10.map(b => vol(b) * Math.max(b.h - b.l, 0)))
+    const ratio = avg > 0 ? bar.vol / avg : 0
+    const vs = bar.vol * Math.max(bar.h - bar.l, 0)
+    const tier = ratio >= v.extreme ? 3 : (ratio >= v.high || (vsMax > 0 && vs >= vsMax && ratio >= v.mid)) ? 2 : ratio >= v.mid ? 1 : 0
+    return { tier, ratio, dir: bar.dSpot + bar.dPerp >= 0 ? 1 : -1 }
+  }
+
+  return { analyze, vector, params: P }
+})()
+/*ENGINE-END*/
+
+const TFS = [
+  { tf: '1m', ms: 60e3, refresh: 15e3 },
+  { tf: '5m', ms: 300e3, refresh: 20e3 },
+  { tf: '15m', ms: 900e3, refresh: 30e3 },
+  { tf: '1h', ms: 3600e3, refresh: 60e3 },
+  { tf: '4h', ms: 14400e3, refresh: 120e3 },
+  { tf: '1d', ms: 86400e3, refresh: 300e3 },
+  { tf: '1w', ms: 604800e3, refresh: 600e3 }
+]
+const LABEL = { '1m': '1m', '5m': '5m', '15m': '15m', '1h': '1H', '4h': '4H', '1d': '1D', '1w': '1W' }
+const SIG = {
+  bullDiv: ['Div. haussière', 'var(--cyan)'],
+  bearDiv: ['Div. baissière', 'var(--magenta)'],
+  absorbBull: ['Absorption ▲', 'var(--absorb-bull)'],
+  absorbBear: ['Absorption ▼', 'var(--absorb-bear)'],
+  spotBull: ['Spot achète', 'var(--gold)'],
+  spotBear: ['Perp pousse', 'var(--violet)']
+}
+
+const params = new URLSearchParams(location.search)
+const SYMBOL = (params.get('symbol') || 'BTCUSDT').toUpperCase().replace(/[^A-Z0-9]/g, '')
+document.getElementById('sym').textContent = SYMBOL
+
+function storageGet(k) { try { return localStorage.getItem(k) } catch (e) { return null } }
+function storageSet(k, v) { try { localStorage.setItem(k, v) } catch (e) { /* stockage indisponible */ } }
+
+let selected = params.get('tf') || storageGet('ced.tf') || '15m'
+if (!TFS.find(x => x.tf === selected)) selected = '15m'
+const results = {}
+let perpAvailable = true
+let livePrice = null
+let lastOk = 0
+
+const SPOT_HOSTS = ['https://api.binance.com', 'https://data-api.binance.vision']
+const PERP_HOST = 'https://fapi.binance.com'
+
+async function getJSON(url) {
+  const r = await fetch(url, { cache: 'no-store' })
+  if (!r.ok) throw new Error('HTTP ' + r.status)
+  return r.json()
+}
+async function spotKlines(tf) {
+  let err
+  for (const host of SPOT_HOSTS) {
+    try { return await getJSON(`${host}/api/v3/klines?symbol=${SYMBOL}&interval=${tf}&limit=400`) } catch (e) { err = e }
+  }
+  throw err
+}
+async function perpKlines(tf) {
+  if (!perpAvailable) return null
+  try { return await getJSON(`${PERP_HOST}/fapi/v1/klines?symbol=${SYMBOL}&interval=${tf}&limit=400`) } catch (e) { perpAvailable = false; return null }
+}
+
+function toBars(spot, perp) {
+  const perpMap = new Map()
+  if (perp) for (const k of perp) perpMap.set(k[0], { d: 2 * +k[10] - +k[7], v: +k[7] })
+  const now = Date.now()
+  const bars = []
+  for (const k of spot) {
+    const pp = perpMap.get(k[0])
+    bars.push({
+      t: k[0], closeTime: k[6] + 1, o: +k[1], h: +k[2], l: +k[3], c: +k[4],
+      dSpot: 2 * +k[10] - +k[7], dPerp: pp ? pp.d : 0,
+      vol: +k[7] + (pp ? pp.v : 0),
+      closed: k[6] < now
+    })
+  }
+  return bars
+}
+
+async function loadTF(def) {
+  try {
+    const [spot, perp] = await Promise.all([spotKlines(def.tf), perpKlines(def.tf)])
+    const bars = toBars(spot, perp)
+    const forming = bars[bars.length - 1]
+    const closed = bars.filter(b => b.closed)
+    if (def.tf === '1m' && forming) livePrice = forming.c
+    const live = forming && !forming.closed ? forming : null
+    const vec = CED.vector(closed.slice(-10), live)
+    results[def.tf] = { ...CED.analyze(closed), vec, closeAt: live ? live.closeTime : null, updated: Date.now() }
+    lastOk = Date.now()
+    setStatus('')
+  } catch (e) {
+    setStatus('Binance injoignable (' + e.message + ')', true)
+  }
+  render()
+}
+
+function setStatus(msg, err) {
+  const el = document.getElementById('status')
+  el.classList.toggle('err', !!err)
+  el.textContent = msg || (lastOk ? 'Mis à jour ' + new Date(lastOk).toLocaleTimeString('fr-FR') : '')
+}
+
+function stateClass(s) { return s > 0 ? 'bull' : s < 0 ? 'bear' : 'none' }
+function stateWord(s) { return s > 0 ? 'BULLISH' : s < 0 ? 'BEARISH' : 'NEUTRE' }
+function fmtPrice(v) {
+  if (v == null || !isFinite(v)) return '—'
+  const d = v >= 1000 ? 1 : v >= 1 ? 3 : 6
+  return v.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d })
+}
+function fmtAgo(ms) {
+  const m = Math.max(0, Math.round(ms / 60000))
+  if (m < 120) return m + ' min ago'
+  const h = Math.floor(m / 60)
+  if (h < 48) return h + ' h ' + String(m % 60).padStart(2, '0') + ' ago'
+  return Math.floor(h / 24) + ' j ' + (h % 24) + ' h ago'
+}
+function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])) }
+
+function render() {
+  document.getElementById('price').textContent = livePrice ? fmtPrice(livePrice) : '—'
+
+  // sélecteur de timeframe
+  const pick = document.getElementById('tfPick')
+  if (!pick.childElementCount) {
+    for (const d of TFS) {
+      const b = document.createElement('button')
+      b.textContent = LABEL[d.tf]
+      b.dataset.tf = d.tf
+      b.addEventListener('click', () => select(d.tf))
+      pick.appendChild(b)
+    }
+  }
+  for (const b of pick.children) b.classList.toggle('on', b.dataset.tf === selected)
+
+  // carte principale
+  const r = results[selected]
+  const hero = document.getElementById('heroCond')
+  const lcState = document.getElementById('lcState')
+  const lcAgo = document.getElementById('lcAgo')
+  if (r) {
+    hero.className = 'cond ' + stateClass(r.state)
+    hero.innerHTML = r.state ? `${stateWord(r.state)} CONDITION<small class="num">${r.flip ? fmtPrice(r.flip.level) : ''}</small>` : 'PAS DE CONDITION'
+    lcState.className = 'v ' + stateClass(r.flip ? r.flip.state : 0)
+    lcState.textContent = r.flip ? stateWord(r.flip.state) : '—'
+    lcAgo.textContent = r.flip ? fmtAgo(Date.now() - r.flip.time) : 'aucun changement sur la période'
+  }
+
+  // biais global
+  const done = TFS.filter(d => results[d.tf])
+  if (done.length) {
+    const bulls = done.filter(d => results[d.tf].state > 0).length
+    const bears = done.filter(d => results[d.tf].state < 0).length
+    const avg = done.reduce((s, d) => s + results[d.tf].score, 0) / done.length
+    document.getElementById('bias').innerHTML =
+      `Biais : <b class="up">${bulls} bullish</b> · <b class="down">${bears} bearish</b> sur ${done.length} timeframes · score moyen <b class="num">${avg >= 0 ? '+' : ''}${avg.toFixed(1)}</b>` +
+      (perpAvailable ? '' : ' · <span class="muted">perp indisponible, spot seul</span>')
+  }
+
+  // grille
+  const rows = TFS.map(d => {
+    const x = results[d.tf]
+    if (!x) return `<tr data-tf="${d.tf}" class="${d.tf === selected ? 'sel' : ''}"><td class="tf">${LABEL[d.tf]}</td><td colspan="6" class="muted">…</td></tr>`
+    const rsiCls = x.rsi >= 70 ? 'rsi-hot' : x.rsi <= 30 ? 'rsi-cold' : ''
+    const flow = x.deltaEma > 0 ? '<span class="up">▲ achat</span>' : '<span class="down">▼ vente</span>'
+    const strip = '<span class="strip">' + x.recentStates.map(s => `<i class="${s > 0 ? 'b' : s < 0 ? 's' : ''}"></i>`).join('') + '</span>'
+    const sig = x.lastSignal && SIG[x.lastSignal.type]
+      ? `<span class="div-tag" style="color:${SIG[x.lastSignal.type][1]}">${esc(SIG[x.lastSignal.type][0])}</span> <span class="muted num">${x.lastSignal.barsAgo}b</span>`
+      : '<span class="muted">—</span>'
+    const ago = x.flip ? fmtAgo(Date.now() - x.flip.time).replace(' ago', '') : '—'
+    const sc = x.score
+    return `<tr data-tf="${d.tf}" class="${d.tf === selected ? 'sel' : ''}">
+      <td class="tf">${LABEL[d.tf]}</td>
+      <td><span class="pill ${stateClass(x.state)}">${x.state > 0 ? '▲ BULL' : x.state < 0 ? '▼ BEAR' : '—'}</span> ${strip}</td>
+      <td class="num ${sc > 0 ? 'up' : sc < 0 ? 'down' : 'flat'}">${sc > 0 ? '+' : ''}${sc}</td>
+      <td class="num ${rsiCls}">${x.rsi.toFixed(1)}</td>
+      <td class="c-flow">${flow}</td>
+      <td class="c-div">${sig}</td>
+      <td class="num muted">${ago}</td>
+    </tr>`
+  })
+  const tbody = document.getElementById('rows')
+  tbody.innerHTML = rows.join('')
+  for (const tr of tbody.children) tr.addEventListener('click', () => select(tr.dataset.tf))
+
+  renderVector()
+}
+
+const VEC_NAME = ['NONE', 'MID', 'HIGH', 'EXTREME']
+const VEC_BULL = ['', '#2979ff', '#76ff03', '#ffea00']
+const VEC_BEAR = ['', '#ab47bc', '#ff00ff', '#ff9100']
+
+function fmtLeft(ms) {
+  if (ms == null) return '—'
+  const s = Math.max(0, Math.floor(ms / 1000))
+  const d = Math.floor(s / 86400), h = Math.floor((s % 86400) / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60
+  const hms = String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0') + ':' + String(sec).padStart(2, '0')
+  return d ? d + 'j ' + hms : hms
+}
+
+function renderVector() {
+  const rows = []
+  let active = 0, bulls = 0, bears = 0, done = 0
+  for (const d of TFS) {
+    const x = results[d.tf]
+    if (!x || !x.vec) {
+      rows.push(`<tr><td class="tf">${LABEL[d.tf]}</td><td colspan="4" class="muted">…</td></tr>`)
+      continue
+    }
+    done++
+    const v = x.vec
+    const color = v.tier ? (v.dir > 0 ? VEC_BULL[v.tier] : VEC_BEAR[v.tier]) : ''
+    if (v.tier) { active++; v.dir > 0 ? bulls++ : bears++ }
+    const name = v.tier ? (v.dir > 0 ? 'BULL ' : 'BEAR ') + VEC_NAME[v.tier] : 'NONE'
+    rows.push(`<tr>
+      <td class="tf">${LABEL[d.tf]}</td>
+      <td class="${v.dir > 0 ? 'up' : 'down'}">${v.dir > 0 ? '▲' : '▼'}</td>
+      <td><span class="vec${v.tier ? ' on' : ''}"${color ? ` style="background:${color}"` : ''}>${name}</span></td>
+      <td class="num">${Math.round(v.ratio * 100)}%</td>
+      <td class="num muted" data-close="${x.closeAt || ''}">${fmtLeft(x.closeAt ? x.closeAt - Date.now() : null)}</td>
+    </tr>`)
+  }
+  if (done) {
+    const cls = active === 0 ? 'muted' : bulls > bears ? 'up' : bears > bulls ? 'down' : ''
+    const label = active === 0 ? 'NO VECTOR' : active + ' TF CONFLUENCE' + (bulls && bears ? ` (${bulls}▲ ${bears}▼)` : '')
+    rows.push(`<tr class="total"><td class="tf">TOTAL</td><td></td><td class="${cls}">${label}</td><td class="num ${cls}">${active}/${done}</td><td></td></tr>`)
+  }
+  document.getElementById('vecRows').innerHTML = rows.join('')
+}
+
+// compte a rebours des clotures, chaque seconde
+setInterval(() => {
+  for (const td of document.querySelectorAll('#vecRows td[data-close]')) {
+    const at = +td.dataset.close
+    if (at) td.textContent = fmtLeft(at - Date.now())
+  }
+}, 1000)
+
+function select(tf) {
+  selected = tf
+  storageSet('ced.tf', tf)
+  render()
+}
+
+function start() {
+  render()
+  TFS.forEach((d, idx) => {
+    setTimeout(() => {
+      loadTF(d)
+      setInterval(() => loadTF(d), d.refresh)
+    }, idx * 250)
+  })
+  // le texte « il y a… » avance même sans nouvelles données
+  setInterval(render, 30e3)
+}
+start()
+</script>
+</body>
+</html>
