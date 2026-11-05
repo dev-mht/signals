@@ -80,6 +80,18 @@
   .div-tag { font-size: 11px; font-weight: 700; }
   .muted { color: var(--faint); }
 
+  /* colonne de gauche : résumé + bloc MARCHÉ (4 cases 2 x 2, détails au survol) */
+  .col-left { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+  .col-left .b-mkt { flex: 1; display: flex; }
+  .mkt { flex: 1; display: grid; grid-template-columns: 1fr 1fr; grid-auto-rows: 1fr; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .mcell { display: flex; flex-direction: column; justify-content: center; padding: 4px 10px; min-width: 0; cursor: help; }
+  .mcell:nth-child(even) { border-left: 1px solid rgba(44, 52, 80, 0.6); }
+  .mcell:nth-child(n+3) { border-top: 1px solid rgba(44, 52, 80, 0.6); }
+  .mcell .k { color: var(--muted); font-weight: 700; font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; }
+  .mcell .v { font-weight: 700; font-size: 12px; }
+  .mcell .v .big { font-size: 14px; }
+  .mcell .sub { color: var(--faint); font-weight: 500; font-size: 11px; margin-left: 6px; }
+
   details { margin-top: 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 2px 12px 8px; }
   summary { cursor: pointer; font-weight: 700; font-size: 12px; letter-spacing: 0.06em; color: var(--muted); padding: 8px 0 4px; }
   details h3 { font-size: 12px; margin: 12px 0 6px; color: var(--text); }
@@ -105,16 +117,17 @@
   .board { display: block; }
   body.wide { padding: 8px 12px 14px; }
   body.wide header { margin-bottom: 8px; }
-  body.wide .board { display: grid; grid-template-columns: minmax(240px, 0.8fr) minmax(600px, 1.8fr) minmax(330px, 1fr); gap: 10px; align-items: start; }
+  body.wide .board { display: grid; grid-template-columns: minmax(240px, 0.8fr) minmax(600px, 1.8fr) minmax(330px, 1fr); gap: 10px; align-items: stretch; }
   body.wide .board .hero { margin-bottom: 0; }
   body.wide .board h2 { margin: 0 0 6px; }
   body.wide .board th, body.wide .board td { padding: 4px 7px; }
   body.wide .board .strip i { height: 10px; }
   body.wide details { margin-top: 10px; }
+  body.wide .b-tf { display: flex; }
 
   /* ?view=resume | signaux | vector : un seul bloc, sans légende */
   body[data-view] .blk, body[data-view] details { display: none; }
-  body[data-view="resume"] .b-resume, body[data-view="signaux"] .b-tf, body[data-view="vector"] .b-vec { display: block; }
+  body[data-view="resume"] .b-resume, body[data-view="signaux"] .b-tf, body[data-view="vector"] .b-vec, body[data-view="marche"] .b-mkt { display: block; }
   body[data-view] .board { display: block; }
   body[data-view] .board h2 { margin: 0 0 6px; }
 
@@ -132,6 +145,7 @@
 </header>
 
 <main class="board">
+<div class="col-left">
 <div class="blk b-resume">
 <section class="hero">
   <div class="hero-top">
@@ -145,6 +159,16 @@
   </div>
   <div class="bias" id="bias"></div>
 </section>
+</div>
+
+<div class="blk b-mkt">
+<div class="mkt">
+  <div class="mcell"><span class="k">Fear &amp; Greed</span><span class="v" id="mFng"><span class="muted">—</span></span></div>
+  <div class="mcell"><span class="k">Open interest</span><span class="v" id="mOi"><span class="muted">—</span></span></div>
+  <div class="mcell"><span class="k">Funding</span><span class="v" id="mFund"><span class="muted">—</span></span></div>
+  <div class="mcell"><span class="k">Long / Short</span><span class="v" id="mLs"><span class="muted">—</span></span></div>
+</div>
+</div>
 </div>
 
 <div class="blk b-tf">
@@ -360,9 +384,10 @@ const TFS = [
   { tf: '1h', ms: 3600e3, refresh: 60e3 },
   { tf: '4h', ms: 14400e3, refresh: 120e3 },
   { tf: '1d', ms: 86400e3, refresh: 300e3 },
-  { tf: '1w', ms: 604800e3, refresh: 600e3 }
+  { tf: '1w', ms: 604800e3, refresh: 600e3 },
+  { tf: '1M', ms: 2592000e3, refresh: 3600e3, noVec: true }
 ]
-const LABEL = { '1m': '1m', '5m': '5m', '15m': '15m', '1h': '1H', '4h': '4H', '1d': '1D', '1w': '1W' }
+const LABEL = { '1m': '1m', '5m': '5m', '15m': '15m', '1h': '1H', '4h': '4H', '1d': '1D', '1w': '1W', '1M': '1Mo' }
 const SIG = {
   bullDiv: ['Div. haussière', 'var(--cyan)'],
   bearDiv: ['Div. baissière', 'var(--magenta)'],
@@ -381,7 +406,7 @@ const ZOOM = parseFloat(params.get('zoom'))
 const ZOOM_OK = ZOOM >= 0.5 && ZOOM <= 3 ? ZOOM : 1
 if (ZOOM_OK !== 1) document.documentElement.style.zoom = ZOOM_OK
 const VIEW = (params.get('view') || '').toLowerCase()
-if (['resume', 'signaux', 'vector'].includes(VIEW)) document.body.dataset.view = VIEW
+if (['resume', 'signaux', 'vector', 'marche'].includes(VIEW)) document.body.dataset.view = VIEW
 function fitLayout() { document.body.classList.toggle('wide', window.innerWidth / ZOOM_OK >= 1200) }
 window.addEventListener('resize', fitLayout)
 fitLayout()
@@ -540,6 +565,7 @@ function render() {
   for (const tr of tbody.children) tr.addEventListener('click', () => select(tr.dataset.tf))
 
   renderVector()
+  renderMkt()
 }
 
 const VEC_NAME = ['NONE', 'MID', 'HIGH', 'EXTREME']
@@ -558,6 +584,7 @@ function renderVector() {
   const rows = []
   let active = 0, bulls = 0, bears = 0, done = 0
   for (const d of TFS) {
+    if (d.noVec) continue
     const x = results[d.tf]
     if (!x || !x.vec) {
       rows.push(`<tr><td class="tf">${LABEL[d.tf]}</td><td colspan="4" class="muted">…</td></tr>`)
@@ -592,6 +619,98 @@ setInterval(() => {
   }
 }, 1000)
 
+// ── Bloc MARCHÉ ─────────────────────────────────────────────────────────────
+// Fear & Greed : alternative.me (indice crypto global, une mise à jour par jour).
+// Dérivés : Binance perp, même hôte que les bougies perp (open interest, funding,
+// ratio long/short des comptes). Chaque source échoue seule et affiche « — ».
+const MKT = { fng: null, oi: null, fund: null, ls: null }
+const FNG_STEPS = [
+  [25, 'Peur extrême', 'var(--bear)'],
+  [45, 'Peur', 'var(--absorb-bear)'],
+  [56, 'Neutre', 'var(--muted)'],
+  [75, 'Cupidité', 'var(--absorb-bull)'],
+  [101, 'Cupidité extrême', 'var(--bull)']
+]
+
+async function loadFng() {
+  try {
+    const j = await getJSON('https://api.alternative.me/fng/?limit=8')
+    const d = j.data.map(x => +x.value)
+    MKT.fng = { now: d[0], yday: d[1], week: d[7] }
+  } catch (e) { /* conserve la dernière valeur connue */ }
+  renderMkt()
+}
+
+async function loadDerivs() {
+  const q = 'symbol=' + SYMBOL
+  const [oi, pi, ls] = await Promise.allSettled([
+    getJSON(`${PERP_HOST}/futures/data/openInterestHist?${q}&period=5m&limit=289`),
+    getJSON(`${PERP_HOST}/fapi/v1/premiumIndex?${q}`),
+    getJSON(`${PERP_HOST}/futures/data/globalLongShortAccountRatio?${q}&period=1h&limit=1`)
+  ])
+  MKT.oi = null
+  if (oi.status === 'fulfilled' && Array.isArray(oi.value) && oi.value.length) {
+    const h = oi.value, last = h[h.length - 1]
+    const pct = k => (h.length > k ? (+last.sumOpenInterest / +h[h.length - 1 - k].sumOpenInterest - 1) * 100 : null)
+    MKT.oi = { usd: +last.sumOpenInterestValue, d1: pct(12), d4: pct(48), d24: pct(288) }
+  }
+  MKT.fund = pi.status === 'fulfilled' && pi.value && pi.value.lastFundingRate != null
+    ? { rate: +pi.value.lastFundingRate * 100, next: +pi.value.nextFundingTime } : null
+  MKT.ls = ls.status === 'fulfilled' && Array.isArray(ls.value) && ls.value.length
+    ? { ratio: +ls.value[0].longShortRatio, long: +ls.value[0].longAccount, short: +ls.value[0].shortAccount } : null
+  renderMkt()
+}
+
+function fmtUsd(v) {
+  if (v == null || !isFinite(v)) return '—'
+  return v >= 1e9 ? '$' + (v / 1e9).toFixed(2) + 'B' : v >= 1e6 ? '$' + (v / 1e6).toFixed(1) + 'M' : '$' + Math.round(v).toLocaleString('en-US')
+}
+function fmtPct(v) {
+  if (v == null || !isFinite(v)) return '<span class="muted">—</span>'
+  return `<span class="${v > 0 ? 'up' : v < 0 ? 'down' : 'flat'}">${v > 0 ? '+' : ''}${v.toFixed(1)}%</span>`
+}
+
+function renderMkt() {
+  const dash = '<span class="muted">—</span>'
+  const set = (id, html, tip) => {
+    const el = document.getElementById(id)
+    el.innerHTML = html
+    el.parentElement.title = tip
+  }
+  const sub = t => `<span class="sub num">${t}</span>`
+  const txtPct = v => (v == null || !isFinite(v) ? '—' : (v > 0 ? '+' : '') + v.toFixed(1) + '%')
+
+  const tipF = 'Fear & Greed crypto (alternative.me), mis à jour une fois par jour : 0 = peur extrême, 100 = cupidité extrême.'
+  const f = MKT.fng
+  if (f && isFinite(f.now)) {
+    const [, label, color] = FNG_STEPS.find(s => f.now < s[0])
+    set('mFng', `<span class="num big" style="color:${color}">${f.now}</span> <span style="color:${color}">${label}</span>`,
+      `${tipF}\nHier : ${isFinite(f.yday) ? f.yday : '—'} · il y a 7 jours : ${isFinite(f.week) ? f.week : '—'}`)
+  } else set('mFng', dash, tipF)
+
+  const tipO = 'Open interest : valeur totale des positions perp ouvertes sur Binance, et sa variation.'
+  const o = MKT.oi
+  if (o) set('mOi', `<span class="num">${fmtUsd(o.usd)}</span>${sub('24h ' + fmtPct(o.d24))}`,
+    `${tipO}\n1 h : ${txtPct(o.d1)} · 4 h : ${txtPct(o.d4)} · 24 h : ${txtPct(o.d24)}`)
+  else set('mOi', dash, tipO)
+
+  const tipU = 'Funding perp Binance : positif = les longs paient les shorts, négatif = l\'inverse. En jaune au-delà de 0,05 % (levier chargé).'
+  const u = MKT.fund
+  if (u && isFinite(u.rate)) {
+    const hot = Math.abs(u.rate) >= 0.05
+    const m = Math.max(0, Math.floor((u.next - Date.now()) / 60000))
+    const left = isFinite(m) ? Math.floor(m / 60) + ' h ' + String(m % 60).padStart(2, '0') : '—'
+    set('mFund', `<span class="num"${hot ? ' style="color:var(--gold)"' : ''}>${u.rate >= 0 ? '+' : ''}${u.rate.toFixed(4)}%</span>${sub('· ' + left.replace(' h ', 'h'))}`,
+      `${tipU}\nProchain paiement dans ${left}`)
+  } else set('mFund', dash, tipU)
+
+  const tipL = 'Ratio long/short des comptes Binance perp (1 h). Au-dessus de 1, plus de comptes longs que de comptes shorts.'
+  const l = MKT.ls
+  if (l && isFinite(l.ratio)) set('mLs', `<span class="num">${l.ratio.toFixed(2)}</span>${sub((l.long * 100).toFixed(0) + ' % long')}`,
+    `${tipL}\n${(l.long * 100).toFixed(0)} % long · ${(l.short * 100).toFixed(0)} % short`)
+  else set('mLs', dash, tipL)
+}
+
 function select(tf) {
   selected = tf
   storageSet('ced.tf', tf)
@@ -600,6 +719,10 @@ function select(tf) {
 
 function start() {
   render()
+  loadFng()
+  setInterval(loadFng, 30 * 60e3)
+  loadDerivs()
+  setInterval(loadDerivs, 60e3)
   TFS.forEach((d, idx) => {
     setTimeout(() => {
       loadTF(d)
