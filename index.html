@@ -135,6 +135,31 @@
     .c-div, .c-flow, .strip { display: none; }
     body { padding: 8px; }
   }
+
+  /* ── Barre DONNÉES DE MARCHÉ (repliable, sous les trois blocs du haut) ── */
+  .fx-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr)); gap: 10px; margin-top: 6px; }
+  .fx-card { background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px 10px; min-width: 0; }
+  .fx-card.fx-wide { grid-column: 1 / -1; }
+  .fx-card h4 { margin: 0 0 6px; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); font-weight: 700; display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .fx-card h4 small { font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--faint); font-size: 11px; }
+  .fx-t { background: transparent; border: 0; border-radius: 0; }
+  .fx-t th, .fx-t td { padding: 3px 8px 3px 0; font-size: 12px; }
+  .fx-t th { font-size: 10px; }
+  .fx-t tbody tr { cursor: default; }
+  .fx-t tr.total td { font-weight: 700; }
+  .fx-bar { display: flex; height: 10px; border-radius: 5px; overflow: hidden; background: var(--panel); margin-bottom: 6px; }
+  .fx-bar i { display: block; height: 100%; width: 0; transition: width .4s; }
+  .fx-bar i.L { background: var(--bear); } .fx-bar i.S { background: var(--bull); }
+  .fx-dot { font-size: 9px; color: var(--faint); margin-left: 3px; } .fx-dot.on { color: var(--bull); }
+  .fx-feed { margin-top: 6px; display: grid; gap: 1px; }
+  .fx-feed div { display: flex; gap: 10px; font-size: 11.5px; color: var(--muted); white-space: nowrap; overflow: hidden; }
+  .fx-kv { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; padding: 4px 0; border-top: 1px solid rgba(44, 52, 80, 0.6); font-size: 12px; }
+  .fx-kv:first-child { border-top: 0; }
+  .fx-kv .k { color: var(--muted); }
+  .fx-kv .v { font-weight: 700; text-align: right; }
+  .fx-kv .sub { color: var(--faint); font-weight: 500; font-size: 11px; margin-left: 6px; }
+  .fx-leg { background: transparent; border: 0; padding: 0; margin-top: 10px; }
+  .fx-leg p { margin: 4px 0; font-size: 11.5px; color: var(--muted); } .fx-leg p b { color: var(--text); font-weight: 600; }
 </style>
 </head>
 <body>
@@ -192,6 +217,37 @@
 </table>
 </div>
 </main>
+
+<details id="flows">
+  <summary>DONNÉES DE MARCHÉ — LIQUIDATIONS, DÉRIVÉS, OPTIONS, STABLES</summary>
+  <div class="fx-grid">
+    <section class="fx-card fx-wide">
+      <h4>Liquidations exécutées · dernière heure <small id="fxLiqNote"></small></h4>
+      <div class="fx-bar"><i class="L" id="fxBarL"></i><i class="S" id="fxBarS"></i></div>
+      <table class="fx-t">
+        <thead><tr><th>Plateforme</th><th>Longs liquidés</th><th>Shorts liquidés</th><th>Plus gros</th></tr></thead>
+        <tbody id="fxLiqRows"></tbody>
+      </table>
+      <div class="fx-feed" id="fxFeed"></div>
+    </section>
+    <section class="fx-card"><h4>Dérivés par plateforme <small>funding /8 h</small></h4>
+      <table class="fx-t"><thead><tr><th>Plateforme</th><th>Funding</th><th>Open interest</th><th>Part</th></tr></thead><tbody id="fxDerivRows"></tbody></table>
+    </section>
+    <section class="fx-card"><h4>Positionnement &amp; flux</h4><div id="fxFlow"></div></section>
+    <section class="fx-card"><h4>Options <small>Deribit</small></h4><div id="fxOpt"></div></section>
+    <section class="fx-card"><h4>Marché global <small>CoinGecko · DefiLlama</small></h4><div id="fxMacro"></div></section>
+    <section class="fx-card"><h4>Flux ETF spot US <small>fichier etf.json</small></h4><div id="fxEtf"></div></section>
+  </div>
+  <details class="fx-leg">
+    <summary>COMMENT LIRE CES DONNÉES</summary>
+    <p><b>Liquidations</b> : positions fermées de force sur la dernière heure. Rouge = longs liquidés (prix qui chute), vert = shorts liquidés. Binance et Bybit sont comptés depuis l'ouverture de la page, OKX inclut son historique récent. Ce sont des liquidations déjà exécutées, pas les niveaux à venir (la carte de liquidation est payante). Le point ● est vert quand le flux en direct est connecté.</p>
+    <p><b>Funding</b> : toujours ramené à 8 h (Hyperliquid paie chaque heure, converti ×8). Jaune au-delà de 0,05 %. <b>Part</b> : poids de la plateforme dans l'open interest des quatre.</p>
+    <p><b>Gros traders</b> : part des positions longues chez les plus gros comptes Binance. <b>Comptes Bybit</b> : part de comptes longs. <b>Taker</b> : acheteurs agressifs / vendeurs agressifs sur Binance perp, au-dessus de 1 = plus d'achats au marché. <b>Basis</b> : écart perp vs prix spot de référence. <b>Prime Coinbase</b> : positive = demande plus forte en dollars (Coinbase) qu'en USDT (Binance).</p>
+    <p><b>Options</b> : DVOL = volatilité implicite 30 jours. Put/Call OI au-dessus de 1 = plus de protection à la baisse. Max pain = strike où les vendeurs d'options paieraient le moins, sur l'échéance la plus chargée parmi les 6 prochaines.</p>
+    <p><b>Marché global</b> : dominance et capitalisation totale (CoinGecko), offre de stablecoins en dollars (DefiLlama) : une offre qui monte = de la poudre sèche qui arrive.</p>
+    <p><b>Flux ETF</b> : aucune source gratuite n'est lisible directement par une page web. Cette carte lit un fichier <b>etf.json</b> posé à côté de index.html, au format {"days":[{"date":"2026-11-05","total":-123400000}]}, et reste vide tant qu'il n'existe pas.</p>
+  </details>
+</details>
 
 <details id="legend">
   <summary>LÉGENDE — COMMENT LIRE LE GRAPHIQUE</summary>
@@ -717,12 +773,297 @@ function select(tf) {
   render()
 }
 
+// ── Barre DONNÉES DE MARCHÉ ─────────────────────────────────────────────────
+// Sources gratuites lues directement par la page (testées depuis signals.apexpad.io) :
+// liquidations en direct Binance / Bybit / OKX (WebSocket), dérivés Binance / Bybit / OKX / Hyperliquid,
+// options Deribit, dominance CoinGecko, stablecoins DefiLlama, prime Coinbase, flux ETF via etf.json (optionnel).
+const FX_BASE = SYMBOL.replace(/(USDT|USDC|BUSD|FDUSD|USD)$/, '')
+const FX_OKX = FX_BASE + '-USDT-SWAP'
+const FX_WIN = 3600e3
+const FX_EX = { binance: 'Binance', bybit: 'Bybit', okx: 'OKX' }
+const FX = { ids: new Set(), liq: [], live: {}, ctVal: null, d: {}, flow: {}, opt: null, macro: {}, etf: null }
+const fxEl = id => document.getElementById(id)
+const fxDash = '<span class="muted">—</span>'
+const fxKv = (k, v) => `<div class="fx-kv"><span class="k">${k}</span><span class="v">${v}</span></div>`
+const fxSub = t => `<span class="sub num">${t}</span>`
+const fxSigned = (v, d = 1) => (v == null || !isFinite(v) ? fxDash : `<span class="${v > 0 ? 'up' : v < 0 ? 'down' : 'flat'}">${v > 0 ? '+' : ''}${v.toFixed(d)}%</span>`)
+const fxPlain = h => h.replace(/<[^>]+>/g, '')
+const fxMoney = v => (v >= 1e12 ? '$' + (v / 1e12).toFixed(2) + 'T' : fmtUsd(v))
+
+// Liquidations en direct
+function fxAddLiq(ex, isLong, usd, px, ts) {
+  if (!isFinite(usd) || usd <= 0 || !isFinite(ts) || ts < Date.now() - FX_WIN) return
+  const id = ex + ':' + ts + ':' + Math.round(usd) + ':' + px
+  if (FX.ids.has(id)) return
+  FX.ids.add(id)
+  FX.liq.push({ id, ex, isLong, usd, px, ts })
+  fxScheduleLiq()
+}
+let fxLiqTimer = null
+function fxScheduleLiq() { if (!fxLiqTimer) fxLiqTimer = setTimeout(() => { fxLiqTimer = null; fxRenderLiq() }, 400) }
+function fxOkxLiq(d) {
+  if (!d || d.instId !== FX_OKX || !FX.ctVal) return
+  for (const x of d.details || []) {
+    const px = +x.bkPx
+    fxAddLiq('okx', x.posSide === 'long' || (x.posSide === 'net' && x.side === 'sell'), +x.sz * FX.ctVal * px, px, +x.ts)
+  }
+}
+function fxOpenWS(name, url, onOpen, onMsg, ping) {
+  let retry = 0
+  const go = () => {
+    let ws, timer
+    try { ws = new WebSocket(url) } catch (e) { setTimeout(go, 30e3); return }
+    ws.onopen = () => {
+      retry = 0; FX.live[name] = true; onOpen(ws)
+      if (ping) timer = setInterval(() => { try { ws.send(ping.msg) } catch (e) { /* socket fermé */ } }, ping.every)
+      fxScheduleLiq()
+    }
+    ws.onmessage = ev => { try { onMsg(JSON.parse(ev.data)) } catch (e) { /* pong ou message non JSON */ } }
+    ws.onclose = () => { FX.live[name] = false; clearInterval(timer); setTimeout(go, Math.min(60e3, 2e3 * 2 ** retry++)); fxScheduleLiq() }
+    ws.onerror = () => { try { ws.close() } catch (e) { /* déjà fermé */ } }
+  }
+  go()
+}
+async function fxStartLiq() {
+  try {
+    const ins = await getJSON(`https://www.okx.com/api/v5/public/instruments?instType=SWAP&instId=${FX_OKX}`)
+    FX.ctVal = +ins.data[0].ctVal * (+ins.data[0].ctMult || 1)
+    const seed = await getJSON(`https://www.okx.com/api/v5/public/liquidation-orders?instType=SWAP&uly=${FX_BASE}-USDT&state=filled&limit=100`)
+    for (const d of seed.data || []) fxOkxLiq(d)
+  } catch (e) { /* OKX : pas d'historique */ }
+  fxOpenWS('binance', `wss://fstream.binance.com/ws/${SYMBOL.toLowerCase()}@forceOrder`, () => {}, m => {
+    const o = m && m.o
+    if (!o || o.s !== SYMBOL) return
+    const px = +o.ap || +o.p
+    fxAddLiq('binance', o.S === 'SELL', (+o.z || +o.q) * px, px, +o.T)
+  })
+  fxOpenWS('bybit', 'wss://stream.bybit.com/v5/public/linear', ws => ws.send(JSON.stringify({ op: 'subscribe', args: ['allLiquidation.' + SYMBOL] })), m => {
+    if (!m || !m.topic || m.topic.indexOf('allLiquidation') !== 0) return
+    for (const x of m.data || []) fxAddLiq('bybit', x.S === 'Buy', +x.v * +x.p, +x.p, +x.T)
+  }, { every: 20e3, msg: JSON.stringify({ op: 'ping' }) })
+  if (FX.ctVal) fxOpenWS('okx', 'wss://ws.okx.com/ws/v5/public', ws => ws.send(JSON.stringify({ op: 'subscribe', args: [{ channel: 'liquidation-orders', instType: 'SWAP' }] })), m => {
+    if (m && m.arg && m.arg.channel === 'liquidation-orders') for (const d of m.data || []) fxOkxLiq(d)
+  }, { every: 25e3, msg: 'ping' })
+}
+function fxRenderLiq() {
+  const cut = Date.now() - FX_WIN
+  FX.liq = FX.liq.filter(e => e.ts >= cut)
+  FX.ids = new Set(FX.liq.map(e => e.id))
+  const agg = {}
+  for (const k of Object.keys(FX_EX)) agg[k] = { L: 0, S: 0, nL: 0, nS: 0, big: null }
+  const tot = { L: 0, S: 0, nL: 0, nS: 0, big: null }
+  for (const e of FX.liq) {
+    for (const a of [agg[e.ex], tot]) {
+      if (e.isLong) { a.L += e.usd; a.nL++ } else { a.S += e.usd; a.nS++ }
+      if (!a.big || e.usd > a.big.usd) a.big = e
+    }
+  }
+  const cell = (v, n, cls) => (n ? `<span class="${cls}">${fmtUsd(v)}</span> <span class="muted">(${n})</span>` : fxDash)
+  const big = b => (b ? `<span class="num">${fmtUsd(b.usd)}</span> <span class="${b.isLong ? 'down' : 'up'}">${b.isLong ? 'long' : 'short'}</span> <span class="muted">@ ${fmtPrice(b.px)}</span>` : fxDash)
+  const line = (name, a, live) => `<tr><td>${name}${live == null ? '' : `<span class="fx-dot${live ? ' on' : ''}">●</span>`}</td><td class="num">${cell(a.L, a.nL, 'down')}</td><td class="num">${cell(a.S, a.nS, 'up')}</td><td>${big(a.big)}</td></tr>`
+  fxEl('fxLiqRows').innerHTML = Object.keys(FX_EX).map(k => line(FX_EX[k], agg[k], !!FX.live[k])).join('') +
+    line('TOTAL', tot, null).replace('<tr>', '<tr class="total">')
+  const sum = tot.L + tot.S
+  fxEl('fxBarL').style.width = sum ? (tot.L / sum * 100) + '%' : '0'
+  fxEl('fxBarS').style.width = sum ? (tot.S / sum * 100) + '%' : '0'
+  fxEl('fxLiqNote').textContent = sum ? Math.round(tot.L / sum * 100) + ' % longs · ' + Math.round(tot.S / sum * 100) + ' % shorts' : 'aucune liquidation reçue pour l\'instant'
+  fxEl('fxFeed').innerHTML = FX.liq.slice().sort((a, b) => b.ts - a.ts).slice(0, 6).map(e =>
+    `<div><span class="num">${fmtAgo(Date.now() - e.ts)}</span><span>${FX_EX[e.ex]}</span><span class="${e.isLong ? 'down' : 'up'}">${e.isLong ? 'LONG' : 'SHORT'}</span><span class="num">${fmtUsd(e.usd)}</span><span class="num muted">@ ${fmtPrice(e.px)}</span></div>`).join('')
+}
+
+// Dérivés par plateforme
+async function fxLoadDerivs() {
+  const q = 'symbol=' + SYMBOL
+  const [bn, bnOi, bb, okF, okO, hl] = await Promise.allSettled([
+    getJSON(`${PERP_HOST}/fapi/v1/premiumIndex?${q}`),
+    getJSON(`${PERP_HOST}/fapi/v1/openInterest?${q}`),
+    getJSON(`https://api.bybit.com/v5/market/tickers?category=linear&${q}`),
+    getJSON(`https://www.okx.com/api/v5/public/funding-rate?instId=${FX_OKX}`),
+    getJSON(`https://www.okx.com/api/v5/public/open-interest?instType=SWAP&instId=${FX_OKX}`),
+    fetch('https://api.hyperliquid.xyz/info', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'metaAndAssetCtxs' }) }).then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json() })
+  ])
+  const ok = p => p.status === 'fulfilled' && p.value
+  const d = {}
+  if (ok(bn)) {
+    const mark = +bn.value.markPrice, index = +bn.value.indexPrice
+    d.binance = { rate: +bn.value.lastFundingRate * 100, oi: ok(bnOi) ? +bnOi.value.openInterest * mark : (MKT.oi ? MKT.oi.usd : null) }
+    FX.flow.basis = index ? (mark / index - 1) * 100 : null
+  }
+  const t = ok(bb) && bb.value.result && bb.value.result.list && bb.value.result.list[0]
+  if (t) d.bybit = { rate: +t.fundingRate * 100, oi: +t.openInterestValue }
+  if (ok(okF) && ok(okO) && okF.value.data && okO.value.data) d.okx = { rate: +okF.value.data[0].fundingRate * 100, oi: +okO.value.data[0].oiUsd }
+  if (ok(hl) && Array.isArray(hl.value)) {
+    const i = hl.value[0].universe.findIndex(u => u.name === FX_BASE)
+    const c = i >= 0 ? hl.value[1][i] : null
+    if (c) d.hl = { rate: +c.funding * 100 * 8, oi: +c.openInterest * +c.markPx }
+  }
+  FX.d = d
+  fxRenderDeriv(); fxRenderFlow()
+}
+function fxRenderDeriv() {
+  const rows = [['Binance', FX.d.binance], ['Bybit', FX.d.bybit], ['OKX', FX.d.okx], ['Hyperliquid', FX.d.hl]]
+  const tot = rows.reduce((s, r) => s + (r[1] && isFinite(r[1].oi) ? r[1].oi : 0), 0)
+  const fund = r => (r == null || !isFinite(r) ? fxDash : `<span class="num"${Math.abs(r) >= 0.05 ? ' style="color:var(--gold)"' : ''}>${r >= 0 ? '+' : ''}${r.toFixed(4)}%</span>`)
+  fxEl('fxDerivRows').innerHTML = rows.map(([n, x]) => {
+    const has = x && isFinite(x.oi)
+    return `<tr><td>${n}</td><td>${fund(x && x.rate)}</td><td class="num">${has ? fmtUsd(x.oi) : '—'}</td><td class="num muted">${has && tot ? Math.round(x.oi / tot * 100) + ' %' : '—'}</td></tr>`
+  }).join('')
+}
+
+// Positionnement et flux
+async function fxLoadFlow() {
+  const q = 'symbol=' + SYMBOL
+  const [top, tk, bb, cb] = await Promise.allSettled([
+    getJSON(`${PERP_HOST}/futures/data/topLongShortPositionRatio?${q}&period=1h&limit=1`),
+    getJSON(`${PERP_HOST}/futures/data/takerlongshortRatio?${q}&period=1h&limit=2`),
+    getJSON(`https://api.bybit.com/v5/market/account-ratio?category=linear&${q}&period=1h&limit=1`),
+    getJSON(`https://api.exchange.coinbase.com/products/${FX_BASE}-USD/ticker`)
+  ])
+  const ok = p => p.status === 'fulfilled' && p.value
+  const f = FX.flow
+  f.top = ok(top) && Array.isArray(top.value) && top.value[0] ? { long: +top.value[0].longAccount, ratio: +top.value[0].longShortRatio } : null
+  f.taker = ok(tk) && Array.isArray(tk.value) && tk.value.length ? { now: +tk.value[tk.value.length - 1].buySellRatio, prev: tk.value.length > 1 ? +tk.value[tk.value.length - 2].buySellRatio : null } : null
+  const bl = ok(bb) && bb.value.result && bb.value.result.list && bb.value.result.list[0]
+  f.bybit = bl ? +bl.buyRatio : null
+  f.cb = ok(cb) && +cb.value.price > 0 ? +cb.value.price : null
+  fxRenderFlow()
+}
+function fxRenderFlow() {
+  const f = FX.flow
+  const pct = v => (v != null && isFinite(v) ? `<span class="num">${(v * 100).toFixed(0)} % long</span>` : fxDash)
+  const ratioCls = r => (r > 1 ? 'up' : r < 1 ? 'down' : 'flat')
+  let prem = fxDash
+  if (f.cb && livePrice) {
+    const diff = f.cb - livePrice
+    prem = `<span class="num ${diff > 0 ? 'up' : diff < 0 ? 'down' : 'flat'}">${diff > 0 ? '+' : ''}${diff.toFixed(1)} $</span>${fxSub(fxPlain(fxSigned(diff / livePrice * 100, 3)))}`
+  }
+  fxEl('fxFlow').innerHTML =
+    fxKv('Gros traders (positions)', f.top ? `${pct(f.top.long)}${fxSub('ratio ' + f.top.ratio.toFixed(2))}` : fxDash) +
+    fxKv('Comptes Bybit', pct(f.bybit)) +
+    fxKv('Taker achat / vente', f.taker ? `<span class="num ${ratioCls(f.taker.now)}">${f.taker.now.toFixed(2)}</span>${f.taker.prev != null ? fxSub('préc. ' + f.taker.prev.toFixed(2)) : ''}` : fxDash) +
+    fxKv('Basis perp Binance', f.basis != null && isFinite(f.basis) ? fxSigned(f.basis, 3) : fxDash) +
+    fxKv('Prime Coinbase', prem)
+}
+
+// Options (Deribit)
+async function fxLoadOpt() {
+  const now = Date.now()
+  const [book, dv] = await Promise.allSettled([
+    getJSON(`https://www.deribit.com/api/v2/public/get_book_summary_by_currency?currency=${FX_BASE}&kind=option`),
+    getJSON(`https://www.deribit.com/api/v2/public/get_volatility_index_data?currency=${FX_BASE}&resolution=3600&start_timestamp=${now - 86400e3}&end_timestamp=${now}`)
+  ])
+  const o = {}
+  const rows = book.status === 'fulfilled' && book.value.result
+  if (rows && rows.length) {
+    const re = /^[A-Z]+-(\d{1,2})([A-Z]{3})(\d{2})-(\d+)-([CP])$/
+    const MON = { JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5, JUL: 6, AUG: 7, SEP: 8, OCT: 9, NOV: 10, DEC: 11 }
+    let pOI = 0, cOI = 0
+    const byExp = new Map()
+    for (const r of rows) {
+      const m = re.exec(r.instrument_name)
+      if (!m || !(m[2] in MON)) continue
+      const t = Date.UTC(2000 + +m[3], MON[m[2]], +m[1], 8)
+      if (t <= now) continue
+      const oi = +r.open_interest || 0, isC = m[5] === 'C'
+      if (isC) cOI += oi; else pOI += oi
+      let e = byExp.get(t)
+      if (!e) { e = { t, oi: 0, rows: [] }; byExp.set(t, e) }
+      e.oi += oi; e.rows.push([+m[4], oi, isC])
+    }
+    if (cOI > 0) o.pc = pOI / cOI
+    const exps = [...byExp.values()].sort((a, b) => a.t - b.t).slice(0, 6)
+    if (exps.length) {
+      const pick = exps.reduce((a, b) => (b.oi > a.oi ? b : a), exps[0])
+      let best = null
+      for (const K of new Set(pick.rows.map(r => r[0]))) {
+        let pay = 0
+        for (const [k, oi, isC] of pick.rows) pay += oi * (isC ? Math.max(0, K - k) : Math.max(0, k - K))
+        if (!best || pay < best.pay) best = { K, pay }
+      }
+      if (best) o.pain = { strike: best.K, t: pick.t }
+    }
+  }
+  const data = dv.status === 'fulfilled' && dv.value.result && dv.value.result.data
+  if (data && data.length) o.dvol = { now: +data[data.length - 1][4], d24: +data[data.length - 1][4] - +data[0][1] }
+  FX.opt = o
+  fxRenderOpt()
+}
+function fxRenderOpt() {
+  const o = FX.opt || {}
+  const dist = o.pain && livePrice ? (o.pain.strike / livePrice - 1) * 100 : null
+  fxEl('fxOpt').innerHTML =
+    fxKv('DVOL (volatilité implicite)', o.dvol ? `<span class="num">${o.dvol.now.toFixed(1)}</span>${fxSub((o.dvol.d24 >= 0 ? '+' : '') + o.dvol.d24.toFixed(1) + ' pts 24h')}` : fxDash) +
+    fxKv('Put / Call (open interest)', o.pc != null ? `<span class="num ${o.pc > 1 ? 'down' : 'up'}">${o.pc.toFixed(2)}</span>` : fxDash) +
+    fxKv('Max pain', o.pain ? `<span class="num">${o.pain.strike.toLocaleString('en-US')}</span>${fxSub(new Date(o.pain.t).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' }) + (dist != null ? ' · ' + (dist > 0 ? '+' : '') + dist.toFixed(1) + ' %' : ''))}` : fxDash)
+}
+
+// Marché global : dominance, capitalisation, stablecoins
+async function fxLoadMacro() {
+  const [cg, st] = await Promise.allSettled([
+    getJSON('https://api.coingecko.com/api/v3/global'),
+    getJSON('https://stablecoins.llama.fi/stablecoins?includePrices=false')
+  ])
+  const m = FX.macro
+  if (cg.status === 'fulfilled' && cg.value.data) {
+    const g = cg.value.data
+    m.btcDom = g.market_cap_percentage.btc; m.ethDom = g.market_cap_percentage.eth
+    m.cap = g.total_market_cap.usd; m.capChg = g.market_cap_change_percentage_24h_usd
+  }
+  if (st.status === 'fulfilled' && st.value.peggedAssets) {
+    const a = st.value.peggedAssets.filter(x => x.pegType === 'peggedUSD')
+    const sum = k => a.reduce((s, x) => s + ((x[k] && x[k].peggedUSD) || 0), 0)
+    const now = sum('circulating'), w = sum('circulatingPrevWeek'), mo = sum('circulatingPrevMonth')
+    m.stable = { now, w: w ? (now / w - 1) * 100 : null, m: mo ? (now / mo - 1) * 100 : null }
+  }
+  fxRenderMacro()
+}
+function fxRenderMacro() {
+  const m = FX.macro
+  fxEl('fxMacro').innerHTML =
+    fxKv('Dominance BTC / ETH', m.btcDom != null ? `<span class="num">${m.btcDom.toFixed(1)} %</span>${fxSub(m.ethDom.toFixed(1) + ' % ETH')}` : fxDash) +
+    fxKv('Capitalisation totale', m.cap != null ? `<span class="num">${fxMoney(m.cap)}</span>${fxSub('24h ' + fxPlain(fxSigned(m.capChg)))}` : fxDash) +
+    fxKv('Stablecoins USD', m.stable ? `<span class="num">${fxMoney(m.stable.now)}</span>${fxSub('7j ' + fxPlain(fxSigned(m.stable.w)) + ' · 30j ' + fxPlain(fxSigned(m.stable.m)))}` : fxDash)
+}
+
+// Flux ETF : lit etf.json s'il existe à côté de la page
+async function fxLoadEtf() {
+  try {
+    const j = await getJSON('etf.json?t=' + Date.now())
+    const days = (j.days || []).filter(x => x && isFinite(+x.total)).sort((a, b) => String(a.date).localeCompare(String(b.date)))
+    FX.etf = days.length ? days : null
+  } catch (e) { FX.etf = null }
+  fxRenderEtf()
+}
+function fxRenderEtf() {
+  const d = FX.etf
+  if (!d) { fxEl('fxEtf').innerHTML = fxKv('Dernier jour', fxDash) + fxKv('5 derniers jours', fxDash) + '<p class="note">Pas de fichier etf.json : voir « Comment lire ces données ».</p>'; return }
+  const last = d[d.length - 1], s5 = d.slice(-5).reduce((s, x) => s + +x.total, 0)
+  const fmt = v => `<span class="num ${v > 0 ? 'up' : v < 0 ? 'down' : 'flat'}">${v > 0 ? '+' : v < 0 ? '−' : ''}${fmtUsd(Math.abs(v))}</span>`
+  fxEl('fxEtf').innerHTML = fxKv('Dernier jour' + fxSub(String(last.date)), fmt(+last.total)) + fxKv('5 derniers jours', fmt(s5))
+}
+
+function startFx() {
+  const d = fxEl('flows')
+  if (storageGet('ced.flows') === '1') d.open = true
+  d.addEventListener('toggle', () => storageSet('ced.flows', d.open ? '1' : '0'))
+  fxRenderLiq(); fxRenderDeriv(); fxRenderFlow(); fxRenderOpt(); fxRenderMacro(); fxRenderEtf()
+  fxStartLiq()
+  setInterval(fxRenderLiq, 30e3)
+  fxLoadDerivs(); setInterval(fxLoadDerivs, 60e3)
+  fxLoadFlow(); setInterval(fxLoadFlow, 60e3)
+  fxLoadOpt(); setInterval(fxLoadOpt, 10 * 60e3)
+  fxLoadMacro(); setInterval(fxLoadMacro, 20 * 60e3)
+  fxLoadEtf(); setInterval(fxLoadEtf, 30 * 60e3)
+  setInterval(() => { fxRenderFlow(); fxRenderOpt() }, 15e3)
+}
+
 function start() {
   render()
   loadFng()
   setInterval(loadFng, 30 * 60e3)
   loadDerivs()
   setInterval(loadDerivs, 60e3)
+  startFx()
   TFS.forEach((d, idx) => {
     setTimeout(() => {
       loadTF(d)
