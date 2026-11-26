@@ -132,9 +132,24 @@
   body[data-view] .board h2 { margin: 0 0 6px; }
 
   @media (max-width: 420px) {
-    .c-div, .c-flow, .strip { display: none; }
+    .c-div, .c-rsid, .c-flow, .strip { display: none; }
     body { padding: 8px; }
   }
+
+  /* ── RSI+ (passe 27) : colonne « Div. RSI » et mini-panneau du timeframe choisi ── */
+  .tf-wrap { flex: 1; min-width: 0; }
+  .rd { font-weight: 700; font-size: 11.5px; }
+  .rd.bull { color: var(--bull); } .rd.bear { color: var(--bear); }
+  .rd.old { opacity: 0.55; }
+  .rd-pre { font-size: 11px; font-weight: 700; margin-left: 5px; }
+  .rd-pre.bull { color: var(--bull); } .rd-pre.bear { color: var(--bear); }
+  .rsi-panel { margin-top: 8px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px 8px; }
+  .rsi-panel[hidden] { display: none; }
+  .rsi-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; font-size: 11px; color: var(--muted); }
+  .rsi-head b { color: var(--text); letter-spacing: 0.08em; }
+  .rsi-head .rv { font: 700 13px var(--mono); }
+  .rsi-svg { display: block; width: 100%; height: auto; margin-top: 4px; }
+  .rsi-note { margin-top: 4px; font-size: 11px; color: var(--faint); }
 
   /* ── Barre DONNÉES DE MARCHÉ (repliable, sous les trois blocs du haut) ── */
   .fx-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr)); gap: 10px; margin-top: 6px; }
@@ -197,14 +212,17 @@
 </div>
 
 <div class="blk b-tf">
+<div class="tf-wrap">
 <table>
   <thead>
     <tr>
-      <th>TF</th><th>Condition</th><th>Score</th><th>RSI</th><th class="c-flow">Flux</th><th class="c-div">Dernier signal</th><th>Change</th>
+      <th>TF</th><th>Condition</th><th>Score</th><th>RSI</th><th class="c-flow">Flux</th><th class="c-div">Dernier signal</th><th class="c-rsid">Div. RSI</th><th>Change</th>
     </tr>
   </thead>
   <tbody id="rows"></tbody>
 </table>
+<div class="rsi-panel" id="rsiPanel" hidden></div>
+</div>
 </div>
 
 <div class="blk b-vec">
@@ -304,12 +322,16 @@
     <p><b>RSI</b> : masqué par défaut, réactivable dans la liste des indicateurs (rouge au-dessus de 70, vert en dessous de 30).</p>
   </div>
 
+  <h3>RSI+ (divergences du RSI lissé)</h3>
+  <p class="note">Colonne <b>Div. RSI</b> et petit graphique sous le tableau : RSI 14 lissé sur 5 bougies, calculé sur les bougies closes (comme dans Hypeterminal). Une <b>divergence</b> relie deux creux (▲ haussière : le prix baisse, le RSI monte) ou deux sommets (▼ baissière : le prix monte, le RSI baisse). Le chiffre « 12b » est le nombre de bougies écoulées depuis sa confirmation. <b>◌▲ / ◌▼</b> = pré-divergence : prévisionnelle, elle peut disparaître. <b>faible</b> : les deux extrêmes du RSI sont à moins de 3 points l'un de l'autre, signal peu fiable. Ce n'est pas le même calcul que « Div. haussière / baissière » du dernier signal, qui lit le CVD.</p>
+
   <h3>Ce panneau</h3>
   <p class="note"><b>Score</b> de −5 à +5 sur la dernière bougie close : EMA 21 vs EMA 55, prix vs EMA 55, RSI (au-dessus de 55 / en dessous de 45), delta moyen sur 9 bougies, divergence ou absorption des 12 dernières bougies. La condition passe <b>bullish</b> à +3, <b>bearish</b> à −3, et garde son état entre les deux. Les petites barres montrent la condition sur les 20 dernières bougies.</p>
   <p class="note"><b>Vector scanner</b> : statut de la bougie en cours sur chaque timeframe (volume en % de la moyenne des 10 précédentes, sens du delta), et le temps restant avant sa clôture. Le statut peut encore monter tant que la bougie n'est pas close. Le total compte les timeframes en vector en même temps.</p>
   <p class="note">Les pivots sont confirmés 3 bougies après le creux ou le sommet : un signal affiché ne se redessine plus. Ce panneau lit Binance spot + perp ; le graphique aggr lit tes 16 marchés agrégés, donc de petits écarts sont normaux. Une divergence donne un contexte, pas un point d'entrée : cherche la confluence entre plusieurs timeframes.</p>
 </details>
 
+<script src="ced-rsi.js"></script>
 <script>
 /*ENGINE-START*/
 const CED = (() => {
@@ -524,6 +546,11 @@ async function loadTF(def) {
     const live = forming && !forming.closed ? forming : null
     const vec = CED.vector(closed.slice(-10), live)
     results[def.tf] = { ...CED.analyze(closed), vec, closeAt: live ? live.closeTime : null, updated: Date.now() }
+    // RSI+ (passe 27) : calculé sur les bougies closes déjà chargées, aucune requête de plus
+    try {
+      results[def.tf].rp = window.CED_RSI ? CED_RSI.analyzeBars(closed) : null
+      results[def.tf].rpN = closed.length
+    } catch (e) { results[def.tf].rp = null }
     lastOk = Date.now()
     setStatus('')
   } catch (e) {
@@ -597,7 +624,7 @@ function render() {
   // grille
   const rows = TFS.map(d => {
     const x = results[d.tf]
-    if (!x) return `<tr data-tf="${d.tf}" class="${d.tf === selected ? 'sel' : ''}"><td class="tf">${LABEL[d.tf]}</td><td colspan="6" class="muted">…</td></tr>`
+    if (!x) return `<tr data-tf="${d.tf}" class="${d.tf === selected ? 'sel' : ''}"><td class="tf">${LABEL[d.tf]}</td><td colspan="7" class="muted">…</td></tr>`
     const rsiCls = x.rsi >= 70 ? 'rsi-hot' : x.rsi <= 30 ? 'rsi-cold' : ''
     const flow = x.deltaEma > 0 ? '<span class="up">▲ achat</span>' : '<span class="down">▼ vente</span>'
     const strip = '<span class="strip">' + x.recentStates.map(s => `<i class="${s > 0 ? 'b' : s < 0 ? 's' : ''}"></i>`).join('') + '</span>'
@@ -613,6 +640,7 @@ function render() {
       <td class="num ${rsiCls}">${x.rsi.toFixed(1)}</td>
       <td class="c-flow">${flow}</td>
       <td class="c-div">${sig}</td>
+      <td class="c-rsid">${rsiDivCell(x)}</td>
       <td class="num muted">${ago}</td>
     </tr>`
   })
@@ -620,8 +648,87 @@ function render() {
   tbody.innerHTML = rows.join('')
   for (const tr of tbody.children) tr.addEventListener('click', () => select(tr.dataset.tf))
 
+  renderRsiPanel()
   renderVector()
   renderMkt()
+}
+
+// ── RSI+ (passe 27) ─────────────────────────────────────────────────────────
+// Divergences du RSI lissé (calcul identique à Hypeterminal, fichier ced-rsi.js). Seules les bougies closes comptent.
+const RSI_MIN_GAP = 3   // écart de RSI entre les deux extrêmes en dessous duquel la divergence est dite « faible »
+const RSI_SHOW = 120    // nombre de bougies dessinées dans le mini-panneau
+const isBullKind = k => k === 'bullish' || k === 'hiddenBullish'
+
+function rsiDivCell(x) {
+  const rp = x.rp
+  if (!rp) return '<span class="muted">—</span>'
+  const last = rp.divergences[rp.divergences.length - 1]
+  const pre = rp.pre[0]
+  let html = ''
+  if (last) {
+    const bull = isBullKind(last.kind)
+    const ago = Math.max(0, x.rpN - 1 - last.confirmedAt)
+    const weak = Math.abs(last.toValue - last.fromValue) < RSI_MIN_GAP
+    html += `<span class="rd ${bull ? 'bull' : 'bear'}${ago > 30 ? ' old' : ''}" title="Divergence RSI confirmée${weak ? ' (écart faible entre les deux extrêmes)' : ''}">${bull ? '▲ Haussière' : '▼ Baissière'}</span> <span class="muted num">${ago}b</span>${weak ? ' <span class="muted">faible</span>' : ''}`
+  }
+  if (pre) {
+    const bull = isBullKind(pre.kind)
+    html += `<span class="rd-pre ${bull ? 'bull' : 'bear'}" title="Pré-divergence : prévisionnelle, elle peut disparaître">◌${bull ? '▲' : '▼'}</span>`
+  }
+  return html || '<span class="muted">—</span>'
+}
+
+function renderRsiPanel() {
+  const box = document.getElementById('rsiPanel')
+  if (!box) return
+  const x = results[selected]
+  if (!x || !x.rp) { box.hidden = true; return }
+  const rp = x.rp, n = rp.values.length
+  const off = Math.max(0, n - RSI_SHOW)
+  const W = 600, H = 96, PAD = 4
+  const px = i => PAD + (i - off) / Math.max(1, n - 1 - off) * (W - 2 * PAD)
+  const py = v => PAD + (100 - v) / 100 * (H - 2 * PAD)
+  const P = window.CED_RSI.DEFAULT_RSI_PARAMS
+  const cur = rp.values[n - 1]
+  const zone = cur <= P.oversold ? ['survente', 'var(--bull)'] : cur >= P.overbought ? ['surchauffe', 'var(--bear)'] : ['neutre', 'var(--muted)']
+
+  let path = '', pen = false
+  for (let i = off; i < n; i++) {
+    const v = rp.values[i]
+    if (!isFinite(v)) { pen = false; continue }
+    path += (pen ? 'L' : 'M') + px(i).toFixed(1) + ' ' + py(v).toFixed(1) + ' '
+    pen = true
+  }
+  let g = `<rect x="0" y="${py(100)}" width="${W}" height="${(py(P.overbought) - py(100)).toFixed(1)}" fill="var(--bear)" opacity="0.07"/>`
+  g += `<rect x="0" y="${py(P.oversold).toFixed(1)}" width="${W}" height="${(py(0) - py(P.oversold)).toFixed(1)}" fill="var(--bull)" opacity="0.07"/>`
+  for (const lv of [P.oversold, 50, P.overbought]) g += `<line x1="0" x2="${W}" y1="${py(lv).toFixed(1)}" y2="${py(lv).toFixed(1)}" stroke="var(--line)" stroke-dasharray="3 4"/>`
+  g += `<path d="${path}" fill="none" stroke="#b39ddb" stroke-width="1.6" stroke-linejoin="round"/>`
+  for (const pv of rp.pivots) if (pv.index >= off) g += `<circle cx="${px(pv.index).toFixed(1)}" cy="${py(pv.value).toFixed(1)}" r="2" fill="${pv.type === 'low' ? 'var(--bull)' : 'var(--bear)'}" opacity="0.55"/>`
+  const drawDiv = d => {
+    if (d.toIndex < off) return ''
+    const col = isBullKind(d.kind) ? 'var(--bull)' : 'var(--bear)'
+    const weak = Math.abs(d.toValue - d.fromValue) < RSI_MIN_GAP
+    const x1 = px(Math.max(d.fromIndex, off)).toFixed(1), y1 = py(d.fromValue).toFixed(1)
+    const x2 = px(d.toIndex).toFixed(1), y2 = py(d.toValue).toFixed(1)
+    const line = `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${col}" stroke-width="1.8"${d.pending ? ' stroke-dasharray="4 3"' : ''} opacity="${weak ? 0.45 : 1}"/>`
+    const dot = d.pending
+      ? `<circle cx="${x2}" cy="${y2}" r="3.6" fill="none" stroke="${col}" stroke-width="1.6"/>`
+      : `<circle cx="${x2}" cy="${y2}" r="3.4" fill="${col}" opacity="${weak ? 0.45 : 1}"/>`
+    return line + dot
+  }
+  for (const d of rp.divergences) g += drawDiv(d)
+  for (const d of rp.pre) g += drawDiv(d)
+
+  const last = rp.divergences[rp.divergences.length - 1]
+  const note = last
+    ? `Dernière divergence confirmée : ${isBullKind(last.kind) ? 'haussière' : 'baissière'}, il y a ${Math.max(0, x.rpN - 1 - last.confirmedAt)} bougies${Math.abs(last.toValue - last.fromValue) < RSI_MIN_GAP ? ' (écart faible entre les deux extrêmes : signal peu fiable)' : ''}.`
+    : 'Aucune divergence confirmée sur la période chargée.'
+  box.hidden = false
+  box.innerHTML = `<div class="rsi-head"><span><b>RSI+</b> · ${LABEL[selected]} · dernière clôture</span>` +
+    `<span><span class="rv" style="color:${zone[1]}">${isFinite(cur) ? cur.toFixed(1) : '—'}</span> <span class="muted">${zone[0]}</span></span>` +
+    `<span class="muted">● confirmée · ◌ prévisionnelle (tirets)</span></div>` +
+    `<svg class="rsi-svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="RSI lissé et divergences">${g}</svg>` +
+    `<div class="rsi-note">${note}</div>`
 }
 
 const VEC_NAME = ['NONE', 'MID', 'HIGH', 'EXTREME']
